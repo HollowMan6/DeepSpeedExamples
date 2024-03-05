@@ -4,7 +4,7 @@
 
 # DeepSpeed Team
 OUTPUT=$1
-ZERO_STAGE=$2
+ZERO_STAGE=$3
 if [ "$OUTPUT" == "" ]; then
     OUTPUT=./output_step1_llama2_7b
 fi

@@ -95,6 +95,12 @@ def parse_args():
         choices=("single_gpu", "single_node", "multi_node"),
         help="Number of GPUs to run the actor/reward models on",
     )
+    parser.add_argument(
+        "--hostfile",
+        type=lambda x: os.path.abspath(x),
+        default="/job/hostfile",
+        help="Directory for the hostfile for multi-node training",
+    )
     args = parser.parse_args()
 
     if args.actor_zero_stage != "" or args.reward_zero_stage != "":
@@ -156,13 +162,13 @@ def get_cmd(args, step_num):
 
     if step_num in (1, 2):
         zero_stage = get_zero_stage(args, step_num)
-        cmd = f"bash {script} {output_dir} {zero_stage}"
+        cmd = f"bash {script} {output_dir} {args.hostfile} {zero_stage} "
     if step_num == 3:
         verify_model(args, 1)  # Verify step 1 model exists
         verify_model(args, 2)  # Verify step 2 model exists
         s1_dir, s1_zs = get_output_dir(args, 1), get_zero_stage(args, 1)
         s2_dir, s2_zs = get_output_dir(args, 2), get_zero_stage(args, 2)
-        cmd = f"bash {script} {s1_dir} {s2_dir} '{s1_zs}' '{s2_zs}' {output_dir}"
+        cmd = f"bash {script} {s1_dir} {s2_dir} '{s1_zs}' '{s2_zs}' {output_dir}  {args.hostfile}"
 
     return cmd
 
