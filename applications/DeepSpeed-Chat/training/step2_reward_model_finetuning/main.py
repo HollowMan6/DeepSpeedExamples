@@ -5,6 +5,7 @@
 # DeepSpeed Team
 import argparse
 import math
+import os
 
 import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
@@ -126,10 +127,6 @@ def parse_args():
                         type=int,
                         default=1234,
                         help="A seed for reproducible training.")
-    parser.add_argument("--local_rank",
-                        type=int,
-                        default=-1,
-                        help="local_rank for distributed training on gpus")
     parser.add_argument(
         '--gradient_checkpointing',
         action='store_true',
@@ -211,11 +208,12 @@ def parse_args():
 def main():
     args = parse_args()
 
-    if args.local_rank == -1:
+    local_rank = int(os.environ["LOCAL_RANK"])
+    if local_rank == -1:
         device = torch.device(get_accelerator().device_name())
     else:
-        get_accelerator().set_device(args.local_rank)
-        device = torch.device(get_accelerator().device_name(), args.local_rank)
+        get_accelerator().set_device(local_rank)
+        device = torch.device(get_accelerator().device_name(), local_rank)
         # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         # torch.distributed.init_process_group(backend='nccl')
         deepspeed.init_distributed()
@@ -284,13 +282,13 @@ def main():
 
     train_phase = 2
     train_dataset, eval_dataset = create_prompt_dataset(
-        args.local_rank, args.data_path, args.data_split,
+        local_rank, args.data_path, args.data_split,
         args.data_output_path, train_phase, args.seed, tokenizer,
         args.max_seq_len)
 
     # DataLoaders creation:
     data_collator = DataCollatorReward()
-    if args.local_rank == -1:
+    if local_rank == -1:
         train_sampler = RandomSampler(train_dataset)
         eval_sampler = SequentialSampler(eval_dataset)
     else:

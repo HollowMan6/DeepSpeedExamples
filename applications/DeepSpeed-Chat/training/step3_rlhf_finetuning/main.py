@@ -196,10 +196,6 @@ def parse_args():
         default=None,
         help="The number of processes to use for the preprocessing.",
     )
-    parser.add_argument("--local_rank",
-                        type=int,
-                        default=-1,
-                        help="local_rank for distributed training on gpus")
 
     # DeepSpeed
     parser.add_argument(
@@ -394,9 +390,10 @@ def parse_args():
 
 
 def create_datasets(args, tokenizer, train_phase=3):
+    local_rank = int(os.environ["LOCAL_RANK"])
     unsupervised_training_enabled = args.unsupervised_dataset_name and args.unsupervised_dataset_config_name
     prompt_train_dataset, _ = create_prompt_dataset(
-        args.local_rank, args.data_path, args.data_split,
+        local_rank, args.data_path, args.data_split,
         args.data_output_path, train_phase, args.seed, tokenizer,
         args.max_prompt_seq_len)
     if unsupervised_training_enabled:
@@ -407,7 +404,7 @@ def create_datasets(args, tokenizer, train_phase=3):
     # DataLoaders creation:
     data_collator = DataCollatorRLHF(args.max_prompt_seq_len,
                                      args.inference_tp_size)
-    if args.local_rank == -1:
+    if local_rank == -1:
         prompt_train_sampler = RandomSampler(prompt_train_dataset)
         if unsupervised_training_enabled:
             unsupervised_train_sampler = RandomSampler(
@@ -443,11 +440,12 @@ def create_datasets(args, tokenizer, train_phase=3):
 def main():
     args = parse_args()
 
-    if args.local_rank == -1:
+    local_rank = int(os.environ["LOCAL_RANK"])
+    if local_rank == -1:
         device = torch.device(get_accelerator().device_name())
     else:
-        get_accelerator().set_device(args.local_rank)
-        device = torch.device(get_accelerator().device_name(), args.local_rank)
+        get_accelerator().set_device(local_rank)
+        device = torch.device(get_accelerator().device_name(), local_rank)
         # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         deepspeed.init_distributed()
 
